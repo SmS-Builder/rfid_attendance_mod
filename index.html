@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>RFID Attendance Dashboard</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+
+    margin: 0;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f4f6f8;
+
+    color: #222;
+}
+
+header {
+
+    background: #111827;
+
+    color: white;
+
+    padding: 20px;
+
+    text-align: center;
+}
+
+header h1 {
+
+    margin: 0;
+
+    font-size: 25px;
+}
+
+header p {
+
+    margin: 7px 0 0;
+
+    opacity: 0.8;
+}
+
+.container {
+
+    max-width: 1100px;
+
+    margin: auto;
+
+    padding: 20px;
+}
+
+/* =========================
+   STATUS
+========================= */
+
+.status {
+
+    background: white;
+
+    border-radius: 12px;
+
+    padding: 20px;
+
+    margin-bottom: 20px;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.08);
+}
+
+.status-title {
+
+    font-size: 14px;
+
+    color: #666;
+}
+
+.status-value {
+
+    font-size: 24px;
+
+    font-weight: bold;
+
+    margin-top: 5px;
+}
+
+.active {
+
+    color: green;
+}
+
+.closed {
+
+    color: red;
+}
+
+/* =========================
+   CARDS
+========================= */
+
+.cards {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+
+    gap: 15px;
+
+    margin-bottom: 25px;
+}
+
+.card {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 12px;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card h3 {
+
+    margin: 0;
+
+    color: #666;
+
+    font-size: 14px;
+}
+
+.card p {
+
+    margin: 10px 0 0;
+
+    font-size: 28px;
+
+    font-weight: bold;
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.table-box {
+
+    background: white;
+
+    border-radius: 12px;
+
+    padding: 20px;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.08);
+
+    overflow-x: auto;
+}
+
+table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+}
+
+th,
+td {
+
+    padding: 12px;
+
+    border-bottom: 1px solid #ddd;
+
+    text-align: left;
+}
+
+th {
+
+    background: #f1f3f5;
+}
+
+.low {
+
+    color: red;
+
+    font-weight: bold;
+}
+
+.good {
+
+    color: green;
+
+    font-weight: bold;
+}
+
+button {
+
+    border: none;
+
+    background: #111827;
+
+    color: white;
+
+    padding: 10px 18px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+}
+
+button:hover {
+
+    opacity: 0.85;
+}
+
+#message {
+
+    margin-top: 10px;
+
+    color: #666;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<header>
+
+<h1>RFID Attendance Dashboard</h1>
+
+<p>ESP32 Smart Attendance System</p>
+
+</header>
+
+
+<div class="container">
+
+
+<!-- =========================
+     LECTURE STATUS
+========================= -->
+
+<div class="status">
+
+<div class="status-title">
+Lecture Status
+</div>
+
+<div id="lectureStatus"
+     class="status-value">
+
+Loading...
+
+</div>
+
+<div id="subject">
+
+</div>
+
+</div>
+
+
+<!-- =========================
+     SUMMARY CARDS
+========================= -->
+
+<div class="cards">
+
+
+<div class="card">
+
+<h3>Total Classes</h3>
+
+<p id="totalClasses">
+0
+</p>
+
+</div>
+
+
+<div class="card">
+
+<h3>Today's Present</h3>
+
+<p id="todayPresent">
+0
+</p>
+
+</div>
+
+
+<div class="card">
+
+<h3>Total Students</h3>
+
+<p id="totalStudents">
+0
+</p>
+
+</div>
+
+
+<div class="card">
+
+<h3>Low Attendance</h3>
+
+<p id="lowAttendance">
+0
+</p>
+
+</div>
+
+
+</div>
+
+
+<!-- =========================
+     REFRESH
+========================= -->
+
+<button onclick="loadDashboard()">
+
+Refresh Dashboard
+
+</button>
+
+<p id="message"></p>
+
+
+<!-- =========================
+     STUDENT TABLE
+========================= -->
+
+<div class="table-box"
+     style="margin-top:20px;">
+
+<h2>Student Attendance</h2>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Name</th>
+
+<th>Enrollment</th>
+
+<th>Present</th>
+
+<th>Absent</th>
+
+<th>Attendance %</th>
+
+<th>Status</th>
+
+</tr>
+
+</thead>
+
+<tbody id="studentTable">
+
+</tbody>
+
+</table>
+
+</div>
+
+
+</div>
+
+
+<script>
+
+
+// =====================================================
+// GOOGLE APPS SCRIPT URL
+// =====================================================
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbzhqFFxrKlLD3D05CSxcjfGxi1vgQEChjjiEvlq9ufYl1aG7wdrNPDsPfl1Nhq4_U6LHA/exec";
+
+// =====================================================
+// LOAD DASHBOARD
+// =====================================================
+
+function loadDashboard() {
+
+    document.getElementById("message")
+        .innerText = "Loading...";
+
+
+    fetch(API_URL + "?action=dashboard")
+
+        .then(response => {
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Network response failed"
+                );
+            }
+
+            return response.json();
+
+        })
+
+        .then(data => {
+
+            // Lecture
+
+            const status =
+                document.getElementById(
+                    "lectureStatus"
+                );
+
+
+            if (data.lectureActive) {
+
+                status.innerText =
+                    "LECTURE ACTIVE";
+
+                status.className =
+                    "status-value active";
+
+            } else {
+
+                status.innerText =
+                    "LECTURE CLOSED";
+
+                status.className =
+                    "status-value closed";
+            }
+
+
+            // Subject
+
+            document.getElementById(
+                "subject"
+            ).innerText =
+                "Subject: " + data.subject;
+
+
+            // Summary
+
+            document.getElementById(
+                "totalClasses"
+            ).innerText =
+                data.totalClasses;
+
+
+            document.getElementById(
+                "todayPresent"
+            ).innerText =
+                data.todayPresent;
+
+
+            document.getElementById(
+                "totalStudents"
+            ).innerText =
+                data.students.length;
+
+
+            // Low attendance
+
+            const lowCount =
+                data.students.filter(
+                    s => s.low
+                ).length;
+
+
+            document.getElementById(
+                "lowAttendance"
+            ).innerText =
+                lowCount;
+
+
+            // Table
+
+            const table =
+                document.getElementById(
+                    "studentTable"
+                );
+
+
+            table.innerHTML = "";
+
+
+            data.students.forEach(
+                student => {
+
+                    const row =
+                        document.createElement(
+                            "tr"
+                        );
+
+
+                    row.innerHTML = `
+
+<td>${student.name}</td>
+
+<td>${student.enrollment}</td>
+
+<td>${student.present}</td>
+
+<td>${student.absent}</td>
+
+<td>${student.percentage}%</td>
+
+<td class="${
+    student.low
+        ? "low"
+        : "good"
+}">
+${
+    student.low
+        ? "LOW ⚠"
+        : "OK"
+}
+</td>
+
+`;
+
+                    table.appendChild(row);
+
+                }
+            );
+
+
+            document.getElementById(
+                "message"
+            ).innerText =
+                "Last updated: " +
+                new Date().toLocaleTimeString();
+
+        })
+
+        .catch(error => {
+
+            console.error(error);
+
+            document.getElementById(
+                "message"
+            ).innerText =
+                "Unable to load dashboard.";
+
+        });
+
+}
+
+
+// =====================================================
+// AUTO LOAD
+// =====================================================
+
+loadDashboard();
+
+
+// Refresh every 10 seconds
+
+setInterval(
+    loadDashboard,
+    10000
+);
+
+</script>
+
+
+</body>
+
+</html>
